@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id      Int    @id @default(autoincrement())
+  name    String @db.VarChar
+  address String @db.VarChar
+  phone   String @db.VarChar
+  email   String @db.VarChar
+  // Relación opcional si deseas
+  scheduledJobs ScheduledJob[]
+  workedJobs    WorkedJob[]
+}
+
+model Employee {
+  id    Int    @id @default(autoincrement())
+  name  String @db.VarChar
+  role  String @db.VarChar
+  phone String @db.VarChar
+}
+
+model Machinery {
+  id          Int    @id @default(autoincrement())
+  category    String @db.VarChar
+  description String @db.VarChar
+  brand       String @db.VarChar
+  quantity    Int
+}
+
+model Supply {
+  id          Int    @id @default(autoincrement())
+  description String @db.VarChar
+  quantity    Int
+}
+
+model ScheduledJob {
+  id        Int      @id @default(autoincrement())
+  service   String   @db.VarChar
+  date      DateTime
+  hour      String   @db.VarChar
+
+  // Referencia a un cliente (FK a la tabla Client)
+  clientId  Int
+  client    Client   @relation(fields: [clientId], references: [id])
+}
+
+model WorkedJob {
+  id        Int      @id @default(autoincrement())
+  service   String   @db.VarChar
+  date      DateTime
+  status    String   @default("Completed") @db.VarChar
+
+  // Igual, relacionamos con el cliente para obtener su nombre
+  clientId  Int
+  client    Client   @relation(fields: [clientId], references: [id])
+}
