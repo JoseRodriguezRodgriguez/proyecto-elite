@@ -72,7 +72,7 @@ export default function QuotePage() {
         <div className="mb-2">
           <label className="block mb-1 font-semibold">Cuerpo de la Cotización:</label>
           <textarea
-            className="w-full border p-2"
+            className="w-full border p-2 bg-white text-black"
             rows={10}
             value={body}
             onChange={(e) => setBody(e.target.value)}

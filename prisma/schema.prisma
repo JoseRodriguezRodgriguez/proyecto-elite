@@ -8,15 +8,17 @@ datasource db {
 }
 
 model Client {
-  id      Int    @id @default(autoincrement())
-  name    String @db.VarChar
-  address String @db.VarChar
-  phone   String @db.VarChar
-  email   String @db.VarChar
-  // Relación opcional si deseas
-  scheduledJobs ScheduledJob[]
-  workedJobs    WorkedJob[]
+  id      Int      @id @default(autoincrement())
+  name    String   @db.VarChar
+  address String   @db.VarChar
+  phone   String   @db.VarChar
+  email   String   @db.VarChar
+  classification String @db.VarChar @default("verde") // valor por defecto
+  notes   String?  @db.VarChar
+  scheduledJobs   ScheduledJob[]
+  workedJobs      WorkedJob[]
 }
+
 
 model Employee {
   id    Int    @id @default(autoincrement())

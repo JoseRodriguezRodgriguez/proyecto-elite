@@ -30,8 +30,6 @@ export async function POST(request: Request) {
 export async function PATCH(request:Request) {
     try {
         const data = await request.json();
-        // Se espera que el objeto data incluya "id" y los campos a actualizar.
-        // Por ejemplo: { id: 1, name: "Nuevo Nombre", address: "Nueva Dirección", phone: 123456 }
         const { id, ...updateData } = data;
         if (!id) {
             return NextResponse.json({ error: "El id del cliente es requerido" }, { status: 400 });

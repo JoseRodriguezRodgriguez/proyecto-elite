@@ -8,6 +8,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -22,12 +23,15 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
+// Interfaz del cliente en el front-end
 interface Client {
   id: number;
   name: string;
   address: string;
   phone: string;
   email: string;
+  classification: string; // "verde" | "amarillo" | "rojo"
+  notes?: string;
 }
 
 export default function ClientsPage() {
@@ -35,22 +39,32 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Estado para búsqueda
+  // Estados de búsqueda
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Estados para diálogos y formularios
+  // Diálogos
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // Para "ver notas"
+  const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false);
+  const [notesToShow, setNotesToShow] = useState("");
+
+  // Cliente nuevo
   const [newClient, setNewClient] = useState<Omit<Client, "id">>({
     name: "",
     address: "",
     phone: "",
     email: "",
+    classification: "verde", // por defecto
+    notes: "",
   });
+
+  // Cliente seleccionado para editar / eliminar
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
-  // Cargar datos desde la API al montar el componente
+  // Cargar datos al montar
   useEffect(() => {
     async function fetchClients() {
       try {
@@ -67,7 +81,7 @@ export default function ClientsPage() {
     fetchClients();
   }, []);
 
-  // Filtrado de clientes según searchQuery
+  // Filtrado según searchQuery
   const filteredClients = clients.filter((client) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -78,7 +92,7 @@ export default function ClientsPage() {
     );
   });
 
-  // Función para agregar un cliente usando la API (POST)
+  // Crear cliente (POST)
   const handleAddClient = async () => {
     try {
       const res = await fetch("/api/clients", {
@@ -89,14 +103,22 @@ export default function ClientsPage() {
       if (!res.ok) throw new Error("Error al agregar el cliente");
       const addedClient = await res.json();
       setClients((prev) => [...prev, addedClient]);
-      setNewClient({ name: "", address: "", phone: "", email: "" });
+      // Reiniciar
+      setNewClient({
+        name: "",
+        address: "",
+        phone: "",
+        email: "",
+        classification: "verde",
+        notes: "",
+      });
       setIsAddDialogOpen(false);
     } catch (err: any) {
       console.error(err);
     }
   };
 
-  // Función para editar un cliente usando la API (PATCH)
+  // Editar cliente (PATCH)
   const handleEditClient = async () => {
     if (!selectedClient) return;
     try {
@@ -111,12 +133,13 @@ export default function ClientsPage() {
         prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
       );
       setIsEditDialogOpen(false);
+      setSelectedClient(null);
     } catch (err: any) {
       console.error(err);
     }
   };
 
-  // Función para eliminar un cliente usando la API (DELETE)
+  // Eliminar cliente (DELETE)
   const handleDeleteClient = async () => {
     if (!selectedClient) return;
     try {
@@ -143,10 +166,12 @@ export default function ClientsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">Clientes</h1>
 
+        {/* Diálogo para agregar */}
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <PlusIcon className="mr-2 h-4 w-4" /> Agregar Cliente
+              <PlusIcon className="mr-2 h-4 w-4" />
+              Agregar Cliente
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -157,6 +182,7 @@ export default function ClientsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              {/* Nombre */}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">
                   Nombre
@@ -170,6 +196,7 @@ export default function ClientsPage() {
                   className="col-span-3"
                 />
               </div>
+              {/* Dirección */}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="address" className="text-right">
                   Dirección
@@ -183,6 +210,7 @@ export default function ClientsPage() {
                   className="col-span-3"
                 />
               </div>
+              {/* Teléfono */}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="phone" className="text-right">
                   Teléfono
@@ -196,6 +224,7 @@ export default function ClientsPage() {
                   className="col-span-3"
                 />
               </div>
+              {/* Email */}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="email" className="text-right">
                   Email
@@ -207,6 +236,65 @@ export default function ClientsPage() {
                     setNewClient({ ...newClient, email: e.target.value })
                   }
                   className="col-span-3"
+                />
+              </div>
+              {/* Clasificación: 3 botones */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Clasificación</Label>
+                <div className="col-span-3 flex gap-2">
+                  <Button
+                    type="button"
+                    variant={
+                      newClient.classification === "verde" ? "default" : "outline"
+                    }
+                    onClick={() =>
+                      setNewClient({ ...newClient, classification: "verde" })
+                    }
+                  >
+                    <div className="w-3 h-3 rounded-full bg-green-500 mr-2" />
+                    Verde
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={
+                      newClient.classification === "amarillo"
+                        ? "default"
+                        : "outline"
+                    }
+                    onClick={() =>
+                      setNewClient({ ...newClient, classification: "amarillo" })
+                    }
+                  >
+                    <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2" />
+                    Amarillo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={
+                      newClient.classification === "rojo" ? "default" : "outline"
+                    }
+                    onClick={() =>
+                      setNewClient({ ...newClient, classification: "rojo" })
+                    }
+                  >
+                    <div className="w-3 h-3 rounded-full bg-red-500 mr-2" />
+                    Rojo
+                  </Button>
+                </div>
+              </div>
+              {/* Notas (opcional) */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="notes" className="text-right">
+                  Notas
+                </Label>
+                <textarea
+                  id="notes"
+                  rows={3}
+                  className="col-span-3 border rounded px-2 py-1 bg-white text-black"
+                  value={newClient.notes}
+                  onChange={(e) =>
+                    setNewClient({ ...newClient, notes: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -235,6 +323,8 @@ export default function ClientsPage() {
             <TableCell>Dirección</TableCell>
             <TableCell>Teléfono</TableCell>
             <TableCell>Email</TableCell>
+            <TableCell>Clasificación</TableCell>
+            <TableCell>Notas</TableCell>
             <TableCell>Opciones</TableCell>
           </TableRow>
         </TableHeader>
@@ -245,8 +335,38 @@ export default function ClientsPage() {
               <TableCell>{client.address}</TableCell>
               <TableCell>{client.phone}</TableCell>
               <TableCell>{client.email}</TableCell>
+              {/* Muestra solo el círculo de color */}
+              <TableCell>
+                {client.classification === "verde" && (
+                  <div className="w-3 h-3 rounded-full bg-green-500 mx-auto" />
+                )}
+                {client.classification === "amarillo" && (
+                  <div className="w-3 h-3 rounded-full bg-yellow-500 mx-auto" />
+                )}
+                {client.classification === "rojo" && (
+                  <div className="w-3 h-3 rounded-full bg-red-500 mx-auto" />
+                )}
+              </TableCell>
+              {/* Columna para ver notas */}
+              <TableCell>
+                {client.notes && client.notes.trim() !== "" ? (
+                  <Button
+                    variant="link"
+                    className="underline p-0"
+                    onClick={() => {
+                      setNotesToShow(client.notes!);
+                      setIsNotesDialogOpen(true);
+                    }}
+                  >
+                    Ver
+                  </Button>
+                ) : (
+                  <span className="text-gray-400">N/A</span>
+                )}
+              </TableCell>
               <TableCell>
                 <div className="flex space-x-2">
+                  {/* Diálogo para editar */}
                   <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                     <DialogTrigger asChild>
                       <Button
@@ -264,83 +384,164 @@ export default function ClientsPage() {
                           Haga cambios al cliente.
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="edit-name" className="text-right">
-                            Nombre
-                          </Label>
-                          <Input
-                            id="edit-name"
-                            value={selectedClient?.name}
-                            onChange={(e) =>
-                              setSelectedClient(
-                                selectedClient
-                                  ? { ...selectedClient, name: e.target.value }
-                                  : null
-                              )
-                            }
-                            className="col-span-3"
-                          />
+                      {selectedClient && (
+                        <div className="grid gap-4 py-4">
+                          {/* Nombre */}
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="edit-name" className="text-right">
+                              Nombre
+                            </Label>
+                            <Input
+                              id="edit-name"
+                              value={selectedClient.name}
+                              onChange={(e) =>
+                                setSelectedClient({
+                                  ...selectedClient,
+                                  name: e.target.value,
+                                })
+                              }
+                              className="col-span-3"
+                            />
+                          </div>
+                          {/* Dirección */}
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="edit-address" className="text-right">
+                              Dirección
+                            </Label>
+                            <Input
+                              id="edit-address"
+                              value={selectedClient.address}
+                              onChange={(e) =>
+                                setSelectedClient({
+                                  ...selectedClient,
+                                  address: e.target.value,
+                                })
+                              }
+                              className="col-span-3"
+                            />
+                          </div>
+                          {/* Teléfono */}
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="edit-phone" className="text-right">
+                              Teléfono
+                            </Label>
+                            <Input
+                              id="edit-phone"
+                              value={selectedClient.phone}
+                              onChange={(e) =>
+                                setSelectedClient({
+                                  ...selectedClient,
+                                  phone: e.target.value,
+                                })
+                              }
+                              className="col-span-3"
+                            />
+                          </div>
+                          {/* Email */}
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="edit-email" className="text-right">
+                              Email
+                            </Label>
+                            <Input
+                              id="edit-email"
+                              value={selectedClient.email}
+                              onChange={(e) =>
+                                setSelectedClient({
+                                  ...selectedClient,
+                                  email: e.target.value,
+                                })
+                              }
+                              className="col-span-3"
+                            />
+                          </div>
+                          {/* Clasificación con botones */}
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label className="text-right">Clasificación</Label>
+                            <div className="col-span-3 flex gap-2">
+                              <Button
+                                type="button"
+                                variant={
+                                  selectedClient.classification === "verde"
+                                    ? "default"
+                                    : "outline"
+                                }
+                                onClick={() =>
+                                  setSelectedClient({
+                                    ...selectedClient,
+                                    classification: "verde",
+                                  })
+                                }
+                              >
+                                <div className="w-3 h-3 rounded-full bg-green-500 mr-2" />
+                                Verde
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={
+                                  selectedClient.classification === "amarillo"
+                                    ? "default"
+                                    : "outline"
+                                }
+                                onClick={() =>
+                                  setSelectedClient({
+                                    ...selectedClient,
+                                    classification: "amarillo",
+                                  })
+                                }
+                              >
+                                <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2" />
+                                Amarillo
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={
+                                  selectedClient.classification === "rojo"
+                                    ? "default"
+                                    : "outline"
+                                }
+                                onClick={() =>
+                                  setSelectedClient({
+                                    ...selectedClient,
+                                    classification: "rojo",
+                                  })
+                                }
+                              >
+                                <div className="w-3 h-3 rounded-full bg-red-500 mr-2" />
+                                Rojo
+                              </Button>
+                            </div>
+                          </div>
+                          {/* Notas */}
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="edit-notes" className="text-right">
+                              Notas
+                            </Label>
+                            <textarea
+                              id="edit-notes"
+                              rows={3}
+                              className="col-span-3 border rounded px-2 py-1 bg-white text-black"
+                              value={selectedClient.notes || ""}
+                              onChange={(e) =>
+                                setSelectedClient({
+                                  ...selectedClient,
+                                  notes: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
                         </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="edit-address" className="text-right">
-                            Dirección
-                          </Label>
-                          <Input
-                            id="edit-address"
-                            value={selectedClient?.address}
-                            onChange={(e) =>
-                              setSelectedClient(
-                                selectedClient
-                                  ? { ...selectedClient, address: e.target.value }
-                                  : null
-                              )
-                            }
-                            className="col-span-3"
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="edit-phone" className="text-right">
-                            Teléfono
-                          </Label>
-                          <Input
-                            id="edit-phone"
-                            value={selectedClient?.phone}
-                            onChange={(e) =>
-                              setSelectedClient(
-                                selectedClient
-                                  ? { ...selectedClient, phone: e.target.value }
-                                  : null
-                              )
-                            }
-                            className="col-span-3"
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="edit-email" className="text-right">
-                            Email
-                          </Label>
-                          <Input
-                            id="edit-email"
-                            value={selectedClient?.email}
-                            onChange={(e) =>
-                              setSelectedClient(
-                                selectedClient
-                                  ? { ...selectedClient, email: e.target.value }
-                                  : null
-                              )
-                            }
-                            className="col-span-3"
-                          />
-                        </div>
-                      </div>
+                      )}
                       <DialogFooter>
                         <Button onClick={handleEditClient}>Guardar Cambios</Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
 
-                  <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                  {/* Diálogo para eliminar */}
+                  <Dialog
+                    open={isDeleteDialogOpen}
+                    onOpenChange={setIsDeleteDialogOpen}
+                  >
                     <DialogTrigger asChild>
                       <Button
                         variant="outline"
@@ -354,11 +555,15 @@ export default function ClientsPage() {
                       <DialogHeader>
                         <DialogTitle>Borrar Cliente</DialogTitle>
                         <DialogDescription>
-                          ¿Está seguro de que desea borrar al cliente? Esta acción no se puede revertir.
+                          ¿Está seguro de que desea borrar al cliente? Esta acción
+                          no se puede revertir.
                         </DialogDescription>
                       </DialogHeader>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsDeleteDialogOpen(false)}
+                        >
                           Cancelar
                         </Button>
                         <Button variant="destructive" onClick={handleDeleteClient}>
@@ -373,6 +578,20 @@ export default function ClientsPage() {
           ))}
         </TableBody>
       </Table>
+
+      {/* Diálogo para ver notas */}
+      <Dialog open={isNotesDialogOpen} onOpenChange={setIsNotesDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Notas del Cliente</DialogTitle>
+          </DialogHeader>
+          {/* Mostrar las notas con saltos de línea */}
+          <div className="whitespace-pre-wrap">{notesToShow}</div>
+          <DialogFooter>
+            <Button onClick={() => setIsNotesDialogOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
