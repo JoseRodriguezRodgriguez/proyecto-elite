@@ -1,3 +1,4 @@
+//rutas API para la página de maquinaria
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 

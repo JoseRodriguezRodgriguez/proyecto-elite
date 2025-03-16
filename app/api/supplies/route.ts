@@ -1,3 +1,4 @@
+//rutas API para la página de suministros
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 

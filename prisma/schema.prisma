@@ -25,6 +25,8 @@ model Employee {
   name  String @db.VarChar
   role  String @db.VarChar
   phone String @db.VarChar
+  user String @unique
+  password String
 }
 
 model Machinery {

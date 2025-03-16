@@ -1,3 +1,4 @@
+//pagina de suministros
 "use client";
 
 import { useState, useEffect } from "react";

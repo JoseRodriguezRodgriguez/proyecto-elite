@@ -1,3 +1,4 @@
+//pagina de clientes
 "use client";
 
 import { useState, useEffect } from "react";

@@ -1,3 +1,4 @@
+//pagina de maquinaria
 "use client";
 
 import { useEffect, useState } from "react";
