@@ -7,26 +7,43 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Client {
-  id      Int      @id @default(autoincrement())
-  name    String   @db.VarChar
-  address String   @db.VarChar
-  phone   String   @db.VarChar
-  email   String   @db.VarChar
-  classification String @db.VarChar @default("verde") // valor por defecto
-  notes   String?  @db.VarChar
-  scheduledJobs   ScheduledJob[]
-  workedJobs      WorkedJob[]
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  DISABLED
 }
 
+model Client {
+  id             Int            @id @default(autoincrement())
+  name           String         @db.VarChar
+  address        String         @db.VarChar
+  phone          String         @db.VarChar
+  email          String         @db.VarChar
+  classification String         @default("verde") @db.VarChar // valor por defecto
+  notes          String?        @db.VarChar
+  scheduledJobs  ScheduledJob[]
+  workedJobs     WorkedJob[]
+
+  @@map("client")
+}
 
 model Employee {
-  id    Int    @id @default(autoincrement())
-  name  String @db.VarChar
-  role  String @db.VarChar
-  phone String @db.VarChar
-  user String @unique
-  password String
+  id                  Int           @id @default(autoincrement())
+  name                String        @db.VarChar
+  role                String        @db.VarChar
+  phone               String        @db.VarChar
+  user                String        @unique
+  password            String?
+  accountStatus       AccountStatus @default(PENDING)
+  activationTokenHash String?       @unique
+  activationExpiresAt DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([role])
+  @@index([accountStatus])
+  @@map("employee")
 }
 
 model Machinery {
@@ -35,32 +52,40 @@ model Machinery {
   description String @db.VarChar
   brand       String @db.VarChar
   quantity    Int
+
+  @@map("machinery")
 }
 
 model Supply {
   id          Int    @id @default(autoincrement())
   description String @db.VarChar
   quantity    Int
+
+  @@map("supply")
 }
 
 model ScheduledJob {
-  id        Int      @id @default(autoincrement())
-  service   String   @db.VarChar
-  date      DateTime
-  hour      String   @db.VarChar
+  id      Int      @id @default(autoincrement())
+  service String   @db.VarChar
+  date    DateTime
+  hour    String   @db.VarChar
 
   // Referencia a un cliente (FK a la tabla Client)
-  clientId  Int
-  client    Client   @relation(fields: [clientId], references: [id])
+  clientId Int
+  client   Client @relation(fields: [clientId], references: [id])
+
+  @@map("scheduled_job")
 }
 
 model WorkedJob {
-  id        Int      @id @default(autoincrement())
-  service   String   @db.VarChar
-  date      DateTime
-  status    String   @default("Completed") @db.VarChar
+  id      Int      @id @default(autoincrement())
+  service String   @db.VarChar
+  date    DateTime
+  status  String   @default("Completed") @db.VarChar
 
   // Igual, relacionamos con el cliente para obtener su nombre
-  clientId  Int
-  client    Client   @relation(fields: [clientId], references: [id])
+  clientId Int
+  client   Client @relation(fields: [clientId], references: [id])
+
+  @@map("worked_job")
 }

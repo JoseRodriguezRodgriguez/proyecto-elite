@@ -1,0 +1,14 @@
+# Normalize text files and store them using LF
+* text=auto eol=lf
+
+# Windows scripts may use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text eol=lf
