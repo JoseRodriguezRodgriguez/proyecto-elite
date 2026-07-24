@@ -1,64 +1,127 @@
 //rutas API para la página de clientes
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { z } from "zod";
+import { requireActiveUser, requireAdmin, authErrorResponse } from "@/lib/auth/session";
 
-const prisma = new PrismaClient();
+const createClientSchema = z.object({
+    name: z.string().trim().min(1, "El nombre es requerido").max(150, "El nombre no puede tener más de 150 caracteres"),
+    address: z.string().trim().min(1).max(255),
+    phone: z.string().trim().min(1).max(30),
+    email: z.string().trim().email().max(255),
+    classification: z.string().trim().min(1).max(30).optional(),
+    notes: z.string().trim().max(1000).nullable().optional()
+});
 
-// GET (listar clientes)
+const updateClientSchema = createClientSchema
+    .partial()
+    .extend({
+        id: z.coerce.number().int().positive("El id debe ser un número positivo")
+    })
+    .refine(
+        (data) => 
+            data.name !== undefined ||
+            data.address !== undefined ||
+            data.phone !== undefined ||
+            data.email !== undefined ||
+            data.classification !== undefined ||
+            data.notes !== undefined,
+        {
+            message: "Al menos un campo debe ser proporcionado para actualizar"
+        }
+    );
+
+const deleteClientSchema = z.object({
+    id: z.coerce.number().int().positive("El id debe ser un número positivo")
+});
+
+function validateError(error: z.ZodError) {
+    return NextResponse.json(
+        {
+            error: "Invalida data request",
+            details: error.flatten().fieldErrors,
+        },
+        { status: 400 }
+    );
+}
+// GET (listar clientes, todos los usuarios pueden acceder a esta ruta)
 export async function GET() {
     try {
-        const clients = await prisma.client.findMany();
+        await requireActiveUser();
+        const clients = await prisma.client.findMany({
+            orderBy: { name: "asc" },
+        });
         return NextResponse.json(clients);
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        return NextResponse.json({ error: message }, { status: 500 });
+        const { status, body } = authErrorResponse(error);
+        return NextResponse.json(body, { status });
     }
 }
 
-// POST (crear cliente)
+// POST (crear cliente, solo administradores pueden acceder a esta ruta)
 export async function POST(request: Request) {
     try {
-        const data = await request.json();
-        const newClient = await prisma.client.create({ data });
-        return NextResponse.json(newClient);
+        await requireAdmin();
+        const body: unknown = await request.json();
+        const parsed = createClientSchema.safeParse(body);
+        if (!parsed.success) {
+            return validateError(parsed.error);
+        }
+        const newClient = await prisma.client.create({
+            data: parsed.data,
+        });
+        return NextResponse.json(newClient, { status: 201 });
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        return NextResponse.json({ error: message }, { status: 500 });
+        const { status, body } = authErrorResponse(error);
+        return NextResponse.json(body, { status });
     }
 }
 
-// PATCH (editar cliente)
+// PATCH (editar cliente, todos los usuarios pueden acceder a esta ruta)
 export async function PATCH(request:Request) {
     try {
-        const data = await request.json();
-        const { id, ...updateData } = data;
-        if (!id) {
-            return NextResponse.json({ error: "El id del cliente es requerido" }, { status: 400 });
+        await requireActiveUser();
+        const body: unknown = await request.json();
+        const parsed = updateClientSchema.safeParse(body);
+        if (!parsed.success) {
+            return validateError(parsed.error);
         }
-        const updatedClient = await prisma.client.update({
+        const { id, ...data } = parsed.data;
+        const client = await prisma.client.update({
             where: { id },
-            data: updateData,
+            data: data,
         });
-        return NextResponse.json(updatedClient);
+        return NextResponse.json(client);
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        return NextResponse.json({ error: message }, { status: 500 });  
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+            return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+        }
+        const { status, body } = authErrorResponse(error);
+        return NextResponse.json(body, { status });
     }
 }
 
-// DELETE (borrar cliente)
+// DELETE (borrar cliente, solo administradores pueden acceder a esta ruta)
 export async function DELETE(request:Request) {
     try {
-        const { id } = await request.json();
-        if(!id) {
-            return NextResponse.json({ error: "El id es requerido" }, {status: 400});
+        await requireAdmin();
+        const body: unknown = await request.json();
+        const parsed = deleteClientSchema.safeParse(body);
+        if (!parsed.success) {
+            return validateError(parsed.error);
         }
-        const deletedClient = await prisma.client.delete({ 
-            where: { id },
+        
+        await prisma.client.delete({
+            where: { id: parsed.data.id },
         });
-        return NextResponse.json(deletedClient);
+        
+        return NextResponse.json({ok: true,});
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        return NextResponse.json({ error: message }, { status: 500 });  
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+            return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+        }
+        const { status, body } = authErrorResponse(error);
+        return NextResponse.json(body, { status });
     }
 }

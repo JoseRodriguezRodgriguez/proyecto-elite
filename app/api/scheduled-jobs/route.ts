@@ -1,46 +1,47 @@
 //rutas API para la página de calendario de trabajos
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { requireActiveUser, requireAdmin, authErrorResponse } from "@/lib/auth/session";
 
-const prisma = new PrismaClient();
 
 export async function GET() {
     try {
-      const scheduledJobs = await prisma.scheduledJob.findMany({
-        include: {
-          client: true,
-        },
-      })
-      return NextResponse.json(scheduledJobs)
+        await requireActiveUser();
+        const scheduledJobs = await prisma.scheduledJob.findMany({
+          include: {
+            client: true,
+          },
+        })
+        return NextResponse.json(scheduledJobs)
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error"
-      return NextResponse.json({ error: message }, { status: 500 })
+      const { status, body } = authErrorResponse(error);
+      return NextResponse.json(body, { status });
     }
   }
   
   export async function POST(request: Request) {
     try {
+      await requireAdmin();
       const data = await request.json()
-      // Asumimos que data.date ya viene en formato ISO desde el cliente
       const newScheduledJob = await prisma.scheduledJob.create({
         data,
         include: { client: true },
       })
       return NextResponse.json(newScheduledJob)
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error"
-      return NextResponse.json({ error: message }, { status: 500 })
+      const { status, body } = authErrorResponse(error);
+      return NextResponse.json(body, { status });
     }
   }
   
   export async function PATCH(request: Request) {
     try {
+      await requireAdmin();
       const data = await request.json()
       const { id, client, ...updateData } = data
       if (!id) {
         return NextResponse.json({ error: "El id del trabajo es requerido" }, { status: 400 })
       }
-      // No necesitamos convertir la fecha aquí, asumimos que viene en formato ISO
       const updatedJob = await prisma.scheduledJob.update({
         where: { id },
         data: updateData,
@@ -48,13 +49,14 @@ export async function GET() {
       })
       return NextResponse.json(updatedJob)
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error"
-      return NextResponse.json({ error: message }, { status: 500 })
+      const { status, body } = authErrorResponse(error);
+      return NextResponse.json(body, { status });
     }
   }
   
   export async function DELETE(request: Request) {
     try {
+      await requireAdmin();
       const { id } = await request.json()
   
       if (!id) {
@@ -67,7 +69,7 @@ export async function GET() {
   
       return NextResponse.json({ message: "Job deleted successfully" })
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error"
-      return NextResponse.json({ error: message }, { status: 500 })
+      const { status, body } = authErrorResponse(error);
+      return NextResponse.json(body, { status });
     }
   }

@@ -1,11 +1,49 @@
 //rutas API para la página de trabajos finalizados
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { z } from "zod";
+import { requireActiveUser, requireAdmin, authErrorResponse } from "@/lib/auth/session";
 
-const prisma = new PrismaClient();
+const workedJobSchema = z.object({
+  service: z.string().trim().min(1).max(255),
+  date: z.coerce.date(),
+  status: z.string().trim().min(1).max(50),
+  clientId: z.number().int().positive(),
+});
 
+const updateWorkedJobSchema = workedJobSchema
+  .partial()
+  .extend({
+    id: z.coerce.number().int().positive(),
+  })
+  .refine(
+    (data) =>
+      data.service !== undefined ||
+      data.date !== undefined ||
+      data.status !== undefined ||
+      data.clientId !== undefined,
+    {
+      message: "Al menos un campo debe ser proporcionado para actualizar",
+    }
+  );
+
+const deleteWorkedJobSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+function validateError(error: z.ZodError) {
+  return NextResponse.json(
+    {
+      error: "Invalid request data",
+      details: error.flatten().fieldErrors,
+    },
+    { status: 400 }
+  );
+}
 export async function GET() {
   try {
+    await requireActiveUser();
     const workedJobs = await prisma.workedJob.findMany({
       include: {
         client: true,
@@ -13,13 +51,14 @@ export async function GET() {
     })
     return NextResponse.json(workedJobs)
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error"
-    return NextResponse.json({ error: message }, { status: 500 })
+    const { status, body } = authErrorResponse(error);
+    return NextResponse.json(body, { status });
   }
 }
 
 export async function POST(request: Request) {
   try {
+    await requireAdmin();
     const data = await request.json()
     const newWorkedJob = await prisma.workedJob.create({
       data,
@@ -27,13 +66,14 @@ export async function POST(request: Request) {
     })
     return NextResponse.json(newWorkedJob)
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error"
-    return NextResponse.json({ error: message }, { status: 500 })
+    const { status, body } = authErrorResponse(error);
+    return NextResponse.json(body, { status });
   }
 }
 
 export async function PATCH(request: Request) {
   try {
+    await requireAdmin();
     const data = await request.json()
     const { id, ...updateData } = data
     if (!id) {
@@ -46,13 +86,14 @@ export async function PATCH(request: Request) {
     })
     return NextResponse.json(updatedJob)
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error"
-    return NextResponse.json({ error: message }, { status: 500 })
+    const { status, body } = authErrorResponse(error);
+    return NextResponse.json(body, { status });
   }
 }
 
 export async function DELETE(request: Request) {
   try {
+    await requireAdmin();
     const { id } = await request.json()
     if (!id) {
       return NextResponse.json({ error: "El id es requerido" }, { status: 400 })
@@ -62,8 +103,7 @@ export async function DELETE(request: Request) {
     })
     return NextResponse.json(deletedWorkedJob)
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error"
-    return NextResponse.json({ error: message }, { status: 500 })
+    const { status, body } = authErrorResponse(error);
+    return NextResponse.json(body, { status });
   }
 }
-

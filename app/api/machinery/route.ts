@@ -1,60 +1,122 @@
 //rutas API para la página de maquinaria
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { z } from "zod";
+import { requireActiveUser, requireAdmin, authErrorResponse } from "@/lib/auth/session";
 
-const prisma = new PrismaClient();
+const createMachinerySchema = z.object({
+    category: z.string().trim().min(1, "La categoría es requerida").max(150, "La categoría no puede tener más de 150 caracteres"),
+    description: z.string().trim().min(1).max(255),
+    brand: z.string().trim().min(1).max(100),
+    quantity: z.number().int().nonnegative("La cantidad debe ser un número entero no negativo"),
+});
 
+const updateMachinerySchema = createMachinerySchema
+    .partial()
+    .extend({
+        id: z.coerce.number().int().positive("El id debe ser un número positivo")
+    })
+    .refine(
+        (data) => 
+            data.category !== undefined ||
+            data.description !== undefined ||
+            data.brand !== undefined ||
+            data.quantity !== undefined,
+        {
+            message: "Al menos un campo debe ser proporcionado para actualizar"
+        }
+    );
+
+const deleteMachinerySchema = z.object({
+    id: z.coerce.number().int().positive("El id debe ser un número positivo")
+});
+
+function validateError(error: z.ZodError) {
+    return NextResponse.json(
+        {
+            error: "Invalida data request",
+            details: error.flatten().fieldErrors,
+        },
+        { status: 400 }
+    );
+}
+
+// GET (listar maquinaria, todos los usuarios pueden acceder a esta ruta)
 export async function GET() {
     try {
-        const machineries = await prisma.machinery.findMany();
-        return NextResponse.json(machineries)
+        await requireActiveUser();
+        const machinery = await prisma.machinery.findMany({
+            orderBy: { category: "asc" },
+        });
+        return NextResponse.json(machinery);
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        return NextResponse.json({ error: message }, { status: 500 });
+        const { status, body } = authErrorResponse(error);
+        return NextResponse.json(body, { status });
     }
 }
 
+// POST (crear maquinaria, solo los administradores pueden acceder a esta ruta)
 export async function POST(request: Request) {
     try {
-        const data = await request.json();
-        const newEmployee = await prisma.machinery.create({ data });
-        return NextResponse.json(newEmployee);
+        await requireAdmin();
+        const body: unknown = await request.json();
+        const parsed = createMachinerySchema.safeParse(body);
+        if (!parsed.success) {
+            return validateError(parsed.error);
+        }
+        const newMachinery = await prisma.machinery.create({
+            data: parsed.data,
+        });
+        return NextResponse.json(newMachinery, { status: 201 });
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        return NextResponse.json({ error: message }, { status: 500 });
+        const { status, body } = authErrorResponse(error);
+        return NextResponse.json(body, { status }) ;
     }
 }
 
+// PATCH (editar maquinaria, solo gerencia pueden acceder a esta ruta)
 export async function PATCH(request: Request) {
     try {
-        const data = await request.json();
-        const { id, ...updateData } = data;
-
-        if(!id){
-            return NextResponse.json({ error: "El id del cliente es requerido" }, { status: 400});
+        await requireAdmin();
+        const body: unknown = await request.json();
+        const parsed = updateMachinerySchema.safeParse(body);
+        if (!parsed.success) {
+            return validateError(parsed.error);
         }
-        const updatedEmployee = await prisma.machinery.update({
+        const { id, ...data } = parsed.data;
+        const machinery = await prisma.machinery.update({
             where: { id },
-            data: updateData,
+            data: data,
         });
-        return NextResponse.json(updatedEmployee);
+        return NextResponse.json(machinery);
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        return NextResponse.json({ error: message }, { status: 500 });
+        if(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+            return NextResponse.json({ error: "La maquinaria no fue encontrada" }, { status: 404 });
+        }
+        const { status, body } = authErrorResponse(error);
+        return NextResponse.json(body, { status });
     }
 }
 
+// DELETE (borrar maquinaria, solo gerencia pueden acceder a esta ruta)
 export async function DELETE(request: Request) {
     try {
-        const { id } = await request.json();
-                if(!id) {
-                    return NextResponse.json({ error: "El id es requerido" }, {status: 400});
-                }
-                const deletedEmployee = await prisma.machinery.delete({ 
-                    where: { id },
-                });
-                return NextResponse.json(deletedEmployee);
+        await requireAdmin();
+        const body: unknown = await request.json();
+        const parsed = deleteMachinerySchema.safeParse(body);
+        if (!parsed.success) {
+            return validateError(parsed.error);
+        }
+        await prisma.machinery.delete({
+            where: { id: parsed.data.id },
+        });
+        return NextResponse.json({ ok: true, });
     } catch (error) {
-        
+        if(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+            return NextResponse.json({ error: "La maquinaria no fue encontrada" }, { status: 404 });
+        }
+        const { status, body } = authErrorResponse(error);
+        return NextResponse.json(body, { status });
     }
 }

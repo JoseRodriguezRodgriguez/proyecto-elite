@@ -20,10 +20,10 @@ export async function getSession() {
 }
 
 /**
- * Ensures the caller is an authenticated ACTIVE administrator.
- * Throws AuthError with 401 or 403.
+ * Validates that the JWT belongs to an employee who still exists
+ * and whose database account is currently ACTIVE.
  */
-export async function requireAdmin() {
+export async function requireActiveUser() {
   const session = await getSession();
 
   if (!session?.user?.id) {
@@ -31,12 +31,15 @@ export async function requireAdmin() {
   }
 
   const employeeId = Number(session.user.id);
+
   if (!Number.isInteger(employeeId)) {
     throw new AuthError("Unauthenticated.", 401);
   }
 
   const employee = await prisma.employee.findUnique({
-    where: { id: employeeId },
+    where: {
+      id: employeeId,
+    },
     select: {
       id: true,
       name: true,
@@ -50,16 +53,45 @@ export async function requireAdmin() {
     throw new AuthError("Unauthenticated.", 401);
   }
 
-  if (employee.role !== ADMIN_ROLE || session.user.role !== ADMIN_ROLE) {
-    throw new AuthError("Forbidden.", 403);
-  }
-
-  return { session, employee };
+  return {
+    session,
+    employee,
+  };
 }
 
 /**
- * Server-page/layout guard: same checks as requireAdmin(),
- * but redirects instead of throwing HTTP-oriented AuthError.
+ * Validates that the current user is an ACTIVE administrator.
+ */
+export async function requireAdmin() {
+  const result = await requireActiveUser();
+
+  if (
+    result.employee.role !== ADMIN_ROLE ||
+    result.session.user.role !== ADMIN_ROLE
+  ) {
+    throw new AuthError("Forbidden.", 403);
+  }
+
+  return result;
+}
+
+/**
+ * Guard for authenticated dashboard pages.
+ */
+export async function requireActivePage() {
+  try {
+    return await requireActiveUser();
+  } catch (error) {
+    if (error instanceof AuthError) {
+      redirect("/login");
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Guard for administrator-only pages.
  */
 export async function requireAdminPage() {
   try {
@@ -69,8 +101,10 @@ export async function requireAdminPage() {
       if (error.status === 401) {
         redirect("/login");
       }
+
       redirect("/");
     }
+
     throw error;
   }
 }
@@ -79,13 +113,18 @@ export function authErrorResponse(error: unknown) {
   if (error instanceof AuthError) {
     return {
       status: error.status,
-      body: { error: error.message },
+      body: {
+        error: error.message,
+      },
     };
   }
 
   console.error("[auth] unexpected error");
+
   return {
     status: 500,
-    body: { error: "Internal server error." },
+    body: {
+      error: "Internal server error.",
+    },
   };
 }
