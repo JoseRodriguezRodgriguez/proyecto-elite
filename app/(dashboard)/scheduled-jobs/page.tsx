@@ -119,7 +119,9 @@ export default function ScheduledJobsPage() {
   const calendarDays = getCalendarDays(currentMonth)
 
   function getJobsForDay(day: Date) {
-    return jobs.filter((job) => isSameDay(parseISO(job.date), day))
+    return filteredJobs.filter((job) => 
+      isSameDay(parseISO(job.date), day)
+    );
   }
 
   const filteredJobs = jobs.filter((job) => {
@@ -158,10 +160,17 @@ export default function ScheduledJobsPage() {
   const handleSaveSelectedJob = async () => {
     if (!selectedJob) return
     try {
-      const { client, ...updateData } = selectedJob
       const jobToUpdate = {
-        ...updateData,
-        date: new Date(`${format(parseISO(selectedJob.date), "yyyy-MM-dd")}T${selectedJob.hour}:00`).toISOString(),
+        id: selectedJob.id,
+        service: selectedJob.service,
+        date: new Date(
+          `${format(
+            parseISO(selectedJob.date),
+            "yyyy-MM-dd"
+          )}T${selectedJob.hour}:00`
+        ).toISOString(),
+        hour: selectedJob.hour,
+        clientId: selectedJob.clientId,
       }
       const res = await fetch("/api/scheduled-jobs", {
         method: "PATCH",

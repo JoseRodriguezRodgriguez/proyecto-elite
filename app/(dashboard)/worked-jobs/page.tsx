@@ -50,6 +50,7 @@ export default function WorkedJobsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [clients, setClients] = useState<Client[]>([])
   const [newClientName, setNewClientName] = useState("")
+  const [error, setError] = useState("")
 
   useEffect(() => {
     fetchWorkedJobs()
@@ -58,65 +59,90 @@ export default function WorkedJobsPage() {
 
   const fetchWorkedJobs = async () => {
     try {
+      setError(""); // Clear previous errors
       const res = await fetch("/api/worked-jobs")
       if (!res.ok) throw new Error("Error al obtener los trabajos realizados")
       const data = await res.json()
       setWorkedJobs(data)
-    } catch (err: any) {
-      console.error("Error en GET /api/worked-jobs:", err.message)
+    } catch (error: unknown) {
+      setError(
+        getErrorMessage(
+          error,
+          "Error al obtener los trabajos realizados"
+        )
+      );
     }
   }
 
   const fetchClients = async () => {
     try {
+      setError(""); // Clear previous errors
       const res = await fetch("/api/clients")
       if (!res.ok) throw new Error("Error al obtener los clientes")
       const data = await res.json()
       setClients(data)
-    } catch (err: any) {
-      console.error("Error en GET /api/clients:", err.message)
+    } catch (error: unknown) {
+      setError(
+        getErrorMessage(
+          error,
+          "Error al obtener los clientes"
+        )
+      );
     }
   }
 
   const handleAddJob = async () => {
-    try {
-      let clientId = newJob.clientId
-      if (clientId === 0 && newClientName) {
-        // Crear nuevo cliente
-        const newClientRes = await fetch("/api/clients", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: newClientName }),
-        })
-        if (!newClientRes.ok) throw new Error("Error al crear nuevo cliente")
-        const newClient = await newClientRes.json()
-        clientId = newClient.id
-      }
-
-      const jobToAdd = {
-        ...newJob,
-        clientId,
-      }
-
-      const res = await fetch("/api/worked-jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(jobToAdd),
-      })
-      if (!res.ok) throw new Error("Error al agregar el trabajo realizado")
-      const addedJob = await res.json()
-      setWorkedJobs([...workedJobs, addedJob])
-      setNewJob({ service: "", date: "", status: "Completed", clientId: 0 })
-      setNewClientName("")
-      setIsAddDialogOpen(false)
-    } catch (err: any) {
-      console.error("Error en POST /api/worked-jobs:", err.message)
+  try {
+    setError(""); // Clear previous errors
+    if (!newJob.clientId || newJob.clientId <= 0) {
+      throw new Error(
+        "Debe seleccionar un cliente existente."
+      );
     }
+
+    const res = await fetch("/api/worked-jobs", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(newJob),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(
+        data.error || "Error al agregar el trabajo realizado"
+      );
+    }
+
+    setWorkedJobs((previous) => [
+      ...previous,
+      data,
+    ]);
+
+    setNewJob({
+      service: "",
+      date: "",
+      status: "Completed",
+      clientId: 0,
+    });
+
+    setIsAddDialogOpen(false);
+  } catch (error: unknown) {
+    setError(
+      getErrorMessage(
+        error,
+        "Error al agregar el trabajo realizado"
+      )
+    );
   }
+};
 
   const handleEditJob = async () => {
     if (!selectedJob) return
     try {
+      setError(""); // Clear previous errors
       const res = await fetch("/api/worked-jobs", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -126,14 +152,20 @@ export default function WorkedJobsPage() {
       const updatedJob = await res.json()
       setWorkedJobs(workedJobs.map((j) => (j.id === updatedJob.id ? updatedJob : j)))
       setIsEditDialogOpen(false)
-    } catch (err: any) {
-      console.error("Error en PATCH /api/worked-jobs:", err.message)
+    } catch (error: unknown) {
+      setError(
+        getErrorMessage(
+          error,
+          "Error al editar el trabajo realizado"
+        )
+      );
     }
   }
 
   const handleDeleteJob = async () => {
     if (!selectedJob) return
     try {
+      setError(""); // Clear previous errors
       const res = await fetch("/api/worked-jobs", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -143,8 +175,13 @@ export default function WorkedJobsPage() {
       await res.json()
       setWorkedJobs(workedJobs.filter((j) => j.id !== selectedJob.id))
       setIsDeleteDialogOpen(false)
-    } catch (err: any) {
-      console.error("Error en DELETE /api/worked-jobs:", err.message)
+    } catch (error: unknown) {
+      setError(
+        getErrorMessage(
+          error,
+          "Error al eliminar el trabajo realizado"
+        )
+      );
     }
   }
 
@@ -160,6 +197,14 @@ export default function WorkedJobsPage() {
 
   return (
     <div className="p-6">
+      {error && (
+      <div
+        role="alert"
+        className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700"
+      >
+        {error}
+      </div>
+    )}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold">Trabajos finalizados</h1>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

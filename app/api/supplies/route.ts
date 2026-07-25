@@ -29,13 +29,20 @@ const deleteSupplySchema = z.object({
 });
 
 function validateError(error: z.ZodError) {
-    return NextResponse.json(
-        {
-            error: "Los datos proporcionados no son válidos",
-            details: error.flatten().fieldErrors,
-        },
-        { status: 400 }
-    );
+  const flattened = z.flattenError(error);
+
+  return NextResponse.json(
+    {
+      error: "Los datos proporcionados no son válidos",
+      details: {
+        formErrors: flattened.formErrors,
+        fieldErrors: flattened.fieldErrors,
+      },
+    },
+    {
+      status: 400,
+    }
+  );
 }
 
 // GET (listar suministros, todos los usuarios pueden acceder a esta ruta)

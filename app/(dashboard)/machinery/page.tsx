@@ -56,8 +56,11 @@ export default function MachineryPage() {
     async function fetchMachinery() {
       try {
         const res = await fetch("/api/machinery");
-        if (!res.ok) throw new Error("Error al obtener la maquinaria");
-        const data = await res.json();
+        if (!res.ok) {
+          throw new Error("Error al obtener la maquinaria");
+        }
+        const data: Machinery[] = await res.json();
+        setMachinery(data);
       } catch (error: unknown) {
         setError(
           getErrorMessage(error, "Error al obtener la maquinaria")
@@ -122,7 +125,7 @@ export default function MachineryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: selectedMachinery.id }),
       });
-      if (!res.ok) throw new Error("Error al borrar el empleado");
+      if (!res.ok) throw new Error("Error al borrar la maquinaria");
       await res.json();
       setMachinery((prev) => prev.filter((c) => c.id !== selectedMachinery.id));
       setSelectedMachinery(null);

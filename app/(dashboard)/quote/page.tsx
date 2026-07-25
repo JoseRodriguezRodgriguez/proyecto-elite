@@ -4,9 +4,9 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusIcon } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import Image from "next/image";
 
 export default function QuotePage() {
   // Estado para los campos de la cotización
@@ -47,7 +47,7 @@ export default function QuotePage() {
     <div className="p-4">
       {/* Header con el logo */}
       <header className="mb-4">
-        <img src="/EliteLogo.svg" alt="Logo Elite" className="h-16" />
+        <Image src="/EliteLogo.svg" alt="Logo Elite" width={128} height={64} className="h-16 w-auto" />
       </header>
 
       {/* Área principal de la cotización, que se usará para generar el PDF */}

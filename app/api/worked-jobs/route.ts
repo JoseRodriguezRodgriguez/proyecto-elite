@@ -7,8 +7,8 @@ import { requireActiveUser, requireAdmin, authErrorResponse } from "@/lib/auth/s
 
 const createWorkedJobSchema = z.object({
   service: z.string().trim().min(1).max(255),
-  date: z.coerce.date(),
-  status: z.string().trim().min(1).max(50),
+  date: z.coerce.date({error: "La fecha no es valida",}),
+  status: z.literal("Completed").default("Completed"),
   clientId: z.number().int().positive(),
 });
 
@@ -33,12 +33,19 @@ const deleteWorkedJobSchema = z.object({
 });
 
 function validateError(error: z.ZodError) {
+  const flattened = z.flattenError(error);
+
   return NextResponse.json(
     {
-      error: "Invalid request data",
-      details: error.flatten().fieldErrors,
+      error: "Los datos proporcionados no son válidos",
+      details: {
+        formErrors: flattened.formErrors,
+        fieldErrors: flattened.fieldErrors,
+      },
     },
-    { status: 400 }
+    {
+      status: 400,
+    }
   );
 }
 export async function GET() {
@@ -71,6 +78,16 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(newWorkedJob, { status: 201 });
   } catch (error) {
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2003"
+    ) {
+      return NextResponse.json(
+        { error: "El cliente proporcionado no existe" },
+        { status: 400 }
+      );
+    }
     const { status, body } = authErrorResponse(error);
     return NextResponse.json(body, { status });
   }
@@ -102,13 +119,29 @@ export async function PATCH(request: Request) {
     return NextResponse.json(updatedJob);
   } catch (error) {
     if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
+      error instanceof Prisma.PrismaClientKnownRequestError 
     ) {
-      return NextResponse.json(
-        { error: "Trabajo finalizado no encontrado" },
-        { status: 404 }
-      );
+      if (error.code === "P2025") {
+        return NextResponse.json(
+          {
+            error: "Trabajo finalizado no encontrado",
+          },
+          {
+            status: 404,
+          }
+        );
+      }
+
+      if (error.code === "P2003") {
+        return NextResponse.json(
+          {
+            error: "El cliente proporcionado no existe",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
     }
 
     const { status, body } = authErrorResponse(error);

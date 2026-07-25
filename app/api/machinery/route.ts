@@ -22,6 +22,23 @@ const machineryDeleteSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
+function validationError(error: z.ZodError) {
+  const flattened = z.flattenError(error);
+
+  return NextResponse.json(
+    {
+      error: "Los datos proporcionados no son válidos",
+      details: {
+        formErrors: flattened.formErrors,
+        fieldErrors: flattened.fieldErrors,
+      },
+    },
+    {
+      status: 400,
+    }
+  );
+}
+
 export async function GET() {
   try {
     await requireActiveUser();
@@ -47,15 +64,7 @@ export async function POST(request: Request) {
     const parsed = machineryCreateSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid machinery data.",
-          details: parsed.error.flatten().fieldErrors,
-        },
-        {
-          status: 400,
-        }
-      );
+      return validationError(parsed.error);
     }
 
     const machinery = await prisma.machinery.create({
@@ -79,15 +88,7 @@ export async function PATCH(request: Request) {
     const parsed = machineryUpdateSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid machinery data.",
-          details: parsed.error.flatten().fieldErrors,
-        },
-        {
-          status: 400,
-        }
-      );
+      return validationError(parsed.error);
     }
 
     const {
@@ -142,14 +143,7 @@ export async function DELETE(request: Request) {
     const parsed = machineryDeleteSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: "A valid machinery ID is required.",
-        },
-        {
-          status: 400,
-        }
-      );
+      return validationError(parsed.error);
     }
 
     await prisma.machinery.delete({

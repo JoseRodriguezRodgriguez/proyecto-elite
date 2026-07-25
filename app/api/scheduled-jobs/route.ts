@@ -51,10 +51,15 @@ const deleteScheduledJobSchema = z.object({
 });
 
 function validationError(error: z.ZodError) {
+  const flattened = z.flattenError(error);
+
   return NextResponse.json(
     {
       error: "Los datos proporcionados no son válidos",
-      details: error.flatten().fieldErrors,
+      details: {
+        formErrors: flattened.formErrors,
+        fieldErrors: flattened.fieldErrors,
+      },
     },
     {
       status: 400,
