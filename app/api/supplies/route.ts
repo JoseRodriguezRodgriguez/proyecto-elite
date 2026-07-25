@@ -5,12 +5,12 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireActiveUser, requireAdmin, authErrorResponse } from "@/lib/auth/session";
 
-const supplySchema = z.object({
-    description: z.string().trim().max(255).optional(),
-    quantity: z.number().int().nonnegative("La cantidad debe ser un número entero no negativo"),
+const createSupplySchema = z.object({
+    description: z.string().trim().min(1, "La descripción es requerida").max(255, "La descripción no puede tener más de 255 caracteres"),
+    quantity: z.number().int("La cantidad debe ser un número entero").nonnegative("La cantidad debe ser un número entero no negativo"),
 });
 
-const updateSupplySchema = supplySchema
+const updateSupplySchema = createSupplySchema
     .partial()
     .extend({
         id: z.coerce.number().int().positive("El id debe ser un número positivo")
@@ -31,7 +31,7 @@ const deleteSupplySchema = z.object({
 function validateError(error: z.ZodError) {
     return NextResponse.json(
         {
-            error: "Invalid request data",
+            error: "Los datos proporcionados no son válidos",
             details: error.flatten().fieldErrors,
         },
         { status: 400 }
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     try {
         await requireAdmin();
         const body: unknown = await request.json();
-        const parsed = supplySchema.safeParse(body);
+        const parsed = createSupplySchema.safeParse(body);
         if (!parsed.success) {
             return validateError(parsed.error);
         }
@@ -87,6 +87,12 @@ export async function PATCH(request:Request) {
         });
         return NextResponse.json(updatedsupply);
     } catch (error) {
+        if(
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2025"
+        ) {
+            return NextResponse.json({ error: "Suministro no encontrado" }, { status: 404 });
+        }
         const { status, body } = authErrorResponse(error);
         return NextResponse.json(body, { status });
     }

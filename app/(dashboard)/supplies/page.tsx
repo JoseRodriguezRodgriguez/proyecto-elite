@@ -23,6 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { getErrorMessage } from "@/lib/errors";
 
 interface Supply {
   id: number;
@@ -54,8 +55,10 @@ export default function SuppliesPage() {
           if (!res.ok) throw new Error("Error al obtener los suministros");
           const data = await res.json();
           setSupplies(data);
-        } catch (err: any) {
-          setError(err.message || "Error desconocido");
+        } catch (error: unknown) {
+          setError(
+            getErrorMessage(error, "Error al obtener los suministros")
+          );
         } finally {
           setLoading(false);
         }
@@ -76,8 +79,12 @@ export default function SuppliesPage() {
       setSupplies((prev) => [...prev, addedSupply]);
       setNewSupply({ description: "", quantity: 0 });
       setIsAddDialogOpen(false);
-    } catch (err: any) {
-      console.error(err);
+    } catch (error: unknown) {
+      const message = getErrorMessage(
+        error, 
+        "No se pudo completar la operación. Por favor, inténtelo de nuevo."
+      );
+      setError(message);
     }
   };
 
@@ -95,8 +102,12 @@ export default function SuppliesPage() {
         prev.map((c) => (c.id === updatedSupply.id ? updatedSupply : c))
       );
       setIsEditDialogOpen(false);
-    } catch (err: any) {
-      console.error(err);
+    } catch (error: unknown) {
+      const message = getErrorMessage(
+        error, 
+        "No se pudo completar la operación. Por favor, inténtelo de nuevo."
+      );
+      setError(message);
     }
   };
 
@@ -113,8 +124,12 @@ export default function SuppliesPage() {
       setSupplies((prev) => prev.filter((c) => c.id !== selectedSupply.id));
       setSelectedSupply(null);
       setIsDeleteDialogOpen(false);
-    } catch (err: any) {
-      console.error(err);
+    } catch (error: unknown) {
+      const message = getErrorMessage(
+        error, 
+        "No se pudo completar la operación. Por favor, inténtelo de nuevo."
+      );
+      setError(message);
     }
   };
 

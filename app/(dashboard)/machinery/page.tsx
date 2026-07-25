@@ -23,6 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { getErrorMessage } from "@/lib/errors";
 
 interface Machinery {
   id: number;
@@ -57,8 +58,10 @@ export default function MachineryPage() {
         const res = await fetch("/api/machinery");
         if (!res.ok) throw new Error("Error al obtener la maquinaria");
         const data = await res.json();
-      } catch (err: any) {
-        setError(err.message || "Error desconocido");
+      } catch (error: unknown) {
+        setError(
+          getErrorMessage(error, "Error al obtener la maquinaria")
+        );
       } finally {
         setLoading(false);
       }
@@ -79,8 +82,12 @@ export default function MachineryPage() {
       setMachinery((prev) => [...prev, addedMachinery]);
       setNewMachinery({ category: "", description: "", brand: "", quantity: 0 })
       setIsAddDialogOpen(false);
-    } catch (err: any) {
-      console.error(err);
+    } catch (error: unknown) {
+      const message = getErrorMessage(
+        error,
+        "No se pudo completar la operación. Por favor, inténtelo de nuevo."
+      );
+      setError(message);
     }
   };
 
@@ -98,8 +105,12 @@ export default function MachineryPage() {
         prev.map((c) => (c.id === updatedMachinery.id ? updatedMachinery : c))
       );
       setIsEditDialogOpen(false);
-    } catch (err: any) {
-      console.error(err);
+    } catch (error: unknown) {
+      const message = getErrorMessage(
+        error,
+        "No se pudo completar la operación. Por favor, inténtelo de nuevo."
+      );
+      setError(message);
     }
   };
 
@@ -116,8 +127,12 @@ export default function MachineryPage() {
       setMachinery((prev) => prev.filter((c) => c.id !== selectedMachinery.id));
       setSelectedMachinery(null);
       setIsDeleteDialogOpen(false);
-    } catch (err: any) {
-      console.error(err);
+    } catch (error: unknown) {
+      const message = getErrorMessage(
+        error,
+        "No se pudo completar la operación. Por favor, inténtelo de nuevo."
+      );
+      setError(message);
     }
   };
 

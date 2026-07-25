@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { PlusIcon } from "lucide-react"
+import { getErrorMessage } from "@/lib/errors"
 
 interface ScheduledJob {
   id: number
@@ -79,8 +80,8 @@ export default function ScheduledJobsPage() {
       if (!res.ok) throw new Error("Error al obtener los trabajos programados")
       const data = await res.json()
       setJobs(data)
-    } catch (err: any) {
-      setError(err.message || "Error desconocido")
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Error al obtener los trabajos programados"))
     } finally {
       setLoading(false)
     }
@@ -92,8 +93,9 @@ export default function ScheduledJobsPage() {
       if (!res.ok) throw new Error("Error al obtener los clientes")
       const data = await res.json()
       setAllClients(data)
-    } catch (err: any) {
-      console.error("Error al cargar clientes:", err.message)
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "No se pudo completar la operación. Por favor, inténtelo de nuevo.")
+      setError(message)
     }
   }
 
@@ -142,8 +144,9 @@ export default function ScheduledJobsPage() {
       setNewJob({ service: "", date: format(new Date(), "yyyy-MM-dd"), hour: "", clientId: 0 })
       setClientSearch("")
       setIsAddDialogOpen(false)
-    } catch (err: any) {
-      console.error("Error en POST /api/scheduled-jobs:", err.message)
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "No se pudo completar la operación. Por favor, inténtelo de nuevo.")
+      setError(message)
     }
   }
 
@@ -170,8 +173,9 @@ export default function ScheduledJobsPage() {
       setJobs((prev) => prev.map((j) => (j.id === updatedJob.id ? updatedJob : j)))
       setSelectedJob(null)
       setIsViewDialogOpen(false)
-    } catch (err: any) {
-      console.error("Error en PATCH /api/scheduled-jobs:", err.message)
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "No se pudo completar la operación. Por favor, inténtelo de nuevo.")
+      setError(message)
     }
   }
 
@@ -188,8 +192,9 @@ export default function ScheduledJobsPage() {
       setJobs((prev) => prev.filter((j) => j.id !== selectedJob.id))
       setSelectedJob(null)
       setIsViewDialogOpen(false)
-    } catch (err: any) {
-      console.error("Error en DELETE /api/scheduled-jobs:", err.message)
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "No se pudo completar la operación. Por favor, inténtelo de nuevo.")
+      setError(message)
     }
   }
 
@@ -213,8 +218,9 @@ export default function ScheduledJobsPage() {
       setJobs((prev) => prev.map((j) => (j.id === updatedJob.id ? updatedJob : j)))
       setSelectedJob(null)
       setIsViewDialogOpen(false)
-    } catch (err: any) {
-      console.error("Error en POST /api/worked-jobs:", err.message)
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "No se pudo completar la operación. Por favor, inténtelo de nuevo.")
+      setError(message)
     }
   }
 

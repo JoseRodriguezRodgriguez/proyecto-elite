@@ -5,14 +5,14 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireActiveUser, requireAdmin, authErrorResponse } from "@/lib/auth/session";
 
-const workedJobSchema = z.object({
+const createWorkedJobSchema = z.object({
   service: z.string().trim().min(1).max(255),
   date: z.coerce.date(),
   status: z.string().trim().min(1).max(50),
   clientId: z.number().int().positive(),
 });
 
-const updateWorkedJobSchema = workedJobSchema
+const updateWorkedJobSchema = createWorkedJobSchema
   .partial()
   .extend({
     id: z.coerce.number().int().positive(),
@@ -59,12 +59,17 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     await requireAdmin();
-    const data = await request.json()
+    
+    const body: unknown = await request.json();
+    const parsed = createWorkedJobSchema.safeParse(body);
+    if (!parsed.success) {
+      return validateError(parsed.error);
+    }
     const newWorkedJob = await prisma.workedJob.create({
-      data,
+      data: parsed.data,
       include: { client: true },
-    })
-    return NextResponse.json(newWorkedJob)
+    });
+    return NextResponse.json(newWorkedJob, { status: 201 });
   } catch (error) {
     const { status, body } = authErrorResponse(error);
     return NextResponse.json(body, { status });
@@ -74,18 +79,38 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await requireAdmin();
-    const data = await request.json()
-    const { id, ...updateData } = data
-    if (!id) {
-      return NextResponse.json({ error: "El id del trabajo es requerido" }, { status: 400 })
+
+    const body: unknown = await request.json();
+    const parsed = updateWorkedJobSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return validateError(parsed.error);
     }
+
+    const { id, ...data } = parsed.data;
+
     const updatedJob = await prisma.workedJob.update({
-      where: { id },
-      data: updateData,
-      include: { client: true },
-    })
-    return NextResponse.json(updatedJob)
+      where: {
+        id,
+      },
+      data,
+      include: {
+        client: true,
+      },
+    });
+
+    return NextResponse.json(updatedJob);
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return NextResponse.json(
+        { error: "Trabajo finalizado no encontrado" },
+        { status: 404 }
+      );
+    }
+
     const { status, body } = authErrorResponse(error);
     return NextResponse.json(body, { status });
   }
@@ -94,15 +119,34 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await requireAdmin();
-    const { id } = await request.json()
-    if (!id) {
-      return NextResponse.json({ error: "El id es requerido" }, { status: 400 })
+
+    const body: unknown = await request.json();
+    const parsed = deleteWorkedJobSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return validateError(parsed.error);
     }
-    const deletedWorkedJob = await prisma.workedJob.delete({
-      where: { id },
-    })
-    return NextResponse.json(deletedWorkedJob)
+
+    await prisma.workedJob.delete({
+      where: {
+        id: parsed.data.id,
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+    });
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return NextResponse.json(
+        { error: "Trabajo finalizado no encontrado" },
+        { status: 404 }
+      );
+    }
+
     const { status, body } = authErrorResponse(error);
     return NextResponse.json(body, { status });
   }

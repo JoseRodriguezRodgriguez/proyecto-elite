@@ -39,7 +39,7 @@ const deleteClientSchema = z.object({
 function validateError(error: z.ZodError) {
     return NextResponse.json(
         {
-            error: "Invalida data request",
+            error: "Los datos proporcionados no son válidos",
             details: error.flatten().fieldErrors,
         },
         { status: 400 }
@@ -118,10 +118,26 @@ export async function DELETE(request:Request) {
         
         return NextResponse.json({ok: true,});
     } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-            return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+          if (error.code === "P2025") {
+            return NextResponse.json(
+              { error: "Cliente no encontrado" },
+              { status: 404 }
+            );
+          }
+      
+          if (error.code === "P2003") {
+            return NextResponse.json(
+              {
+                error:
+                  "No se puede eliminar el cliente porque tiene trabajos asociados",
+              },
+              { status: 409 }
+            );
+          }
         }
+    
         const { status, body } = authErrorResponse(error);
         return NextResponse.json(body, { status });
-    }
+    }       
 }

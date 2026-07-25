@@ -1,122 +1,182 @@
-//rutas API para la página de maquinaria
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { requireActiveUser, requireAdmin, authErrorResponse } from "@/lib/auth/session";
+import { authErrorResponse, requireActiveUser, requireAdmin,
+} from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
 
-const createMachinerySchema = z.object({
-    category: z.string().trim().min(1, "La categoría es requerida").max(150, "La categoría no puede tener más de 150 caracteres"),
-    description: z.string().trim().min(1).max(255),
-    brand: z.string().trim().min(1).max(100),
-    quantity: z.number().int().nonnegative("La cantidad debe ser un número entero no negativo"),
+const machineryCreateSchema = z.object({
+  category: z.string().trim().min(1).max(100),
+  description: z.string().trim().min(1).max(255),
+  brand: z.string().trim().min(1).max(100),
+  quantity: z.number().int().nonnegative(),
 });
 
-const updateMachinerySchema = createMachinerySchema
-    .partial()
-    .extend({
-        id: z.coerce.number().int().positive("El id debe ser un número positivo")
-    })
-    .refine(
-        (data) => 
-            data.category !== undefined ||
-            data.description !== undefined ||
-            data.brand !== undefined ||
-            data.quantity !== undefined,
-        {
-            message: "Al menos un campo debe ser proporcionado para actualizar"
-        }
-    );
+const machineryUpdateSchema = machineryCreateSchema
+  .partial()
+  .extend({
+    id: z.coerce.number().int().positive(),
+  });
 
-const deleteMachinerySchema = z.object({
-    id: z.coerce.number().int().positive("El id debe ser un número positivo")
+const machineryDeleteSchema = z.object({
+  id: z.coerce.number().int().positive(),
 });
 
-function validateError(error: z.ZodError) {
-    return NextResponse.json(
-        {
-            error: "Invalida data request",
-            details: error.flatten().fieldErrors,
-        },
-        { status: 400 }
-    );
-}
-
-// GET (listar maquinaria, todos los usuarios pueden acceder a esta ruta)
 export async function GET() {
-    try {
-        await requireActiveUser();
-        const machinery = await prisma.machinery.findMany({
-            orderBy: { category: "asc" },
-        });
-        return NextResponse.json(machinery);
-    } catch (error) {
-        const { status, body } = authErrorResponse(error);
-        return NextResponse.json(body, { status });
-    }
+  try {
+    await requireActiveUser();
+
+    const machinery = await prisma.machinery.findMany({
+      orderBy: {
+        description: "asc",
+      },
+    });
+
+    return NextResponse.json(machinery);
+  } catch (error) {
+    const { status, body } = authErrorResponse(error);
+    return NextResponse.json(body, { status });
+  }
 }
 
-// POST (crear maquinaria, solo los administradores pueden acceder a esta ruta)
 export async function POST(request: Request) {
-    try {
-        await requireAdmin();
-        const body: unknown = await request.json();
-        const parsed = createMachinerySchema.safeParse(body);
-        if (!parsed.success) {
-            return validateError(parsed.error);
+  try {
+    await requireAdmin();
+
+    const body: unknown = await request.json();
+    const parsed = machineryCreateSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid machinery data.",
+          details: parsed.error.flatten().fieldErrors,
+        },
+        {
+          status: 400,
         }
-        const newMachinery = await prisma.machinery.create({
-            data: parsed.data,
-        });
-        return NextResponse.json(newMachinery, { status: 201 });
-    } catch (error) {
-        const { status, body } = authErrorResponse(error);
-        return NextResponse.json(body, { status }) ;
+      );
     }
+
+    const machinery = await prisma.machinery.create({
+      data: parsed.data,
+    });
+
+    return NextResponse.json(machinery, {
+      status: 201,
+    });
+  } catch (error) {
+    const { status, body } = authErrorResponse(error);
+    return NextResponse.json(body, { status });
+  }
 }
 
-// PATCH (editar maquinaria, solo gerencia pueden acceder a esta ruta)
 export async function PATCH(request: Request) {
-    try {
-        await requireAdmin();
-        const body: unknown = await request.json();
-        const parsed = updateMachinerySchema.safeParse(body);
-        if (!parsed.success) {
-            return validateError(parsed.error);
+  try {
+    await requireAdmin();
+
+    const body: unknown = await request.json();
+    const parsed = machineryUpdateSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid machinery data.",
+          details: parsed.error.flatten().fieldErrors,
+        },
+        {
+          status: 400,
         }
-        const { id, ...data } = parsed.data;
-        const machinery = await prisma.machinery.update({
-            where: { id },
-            data: data,
-        });
-        return NextResponse.json(machinery);
-    } catch (error) {
-        if(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-            return NextResponse.json({ error: "La maquinaria no fue encontrada" }, { status: 404 });
-        }
-        const { status, body } = authErrorResponse(error);
-        return NextResponse.json(body, { status });
+      );
     }
+
+    const {
+      id,
+      ...data
+    } = parsed.data;
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json(
+        {
+          error: "No fields were provided to update.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const machinery = await prisma.machinery.update({
+      where: {
+        id,
+      },
+      data,
+    });
+
+    return NextResponse.json(machinery);
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Machinery record not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    const { status, body } = authErrorResponse(error);
+    return NextResponse.json(body, { status });
+  }
 }
 
-// DELETE (borrar maquinaria, solo gerencia pueden acceder a esta ruta)
 export async function DELETE(request: Request) {
-    try {
-        await requireAdmin();
-        const body: unknown = await request.json();
-        const parsed = deleteMachinerySchema.safeParse(body);
-        if (!parsed.success) {
-            return validateError(parsed.error);
+  try {
+    await requireAdmin();
+
+    const body: unknown = await request.json();
+    const parsed = machineryDeleteSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: "A valid machinery ID is required.",
+        },
+        {
+          status: 400,
         }
-        await prisma.machinery.delete({
-            where: { id: parsed.data.id },
-        });
-        return NextResponse.json({ ok: true, });
-    } catch (error) {
-        if(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-            return NextResponse.json({ error: "La maquinaria no fue encontrada" }, { status: 404 });
-        }
-        const { status, body } = authErrorResponse(error);
-        return NextResponse.json(body, { status });
+      );
     }
+
+    await prisma.machinery.delete({
+      where: {
+        id: parsed.data.id,
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Machinery record not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    const { status, body } = authErrorResponse(error);
+    return NextResponse.json(body, { status });
+  }
 }
