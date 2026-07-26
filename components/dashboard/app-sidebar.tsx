@@ -119,28 +119,27 @@ export default function AppSidebar({
   function renderSidebarContent() {
     return (
       <>
-        <div className="flex h-20 items-center border-b border-sidebar-border px-5">
+        <div className="flex min-h-24 items-center border-b border-sidebar-border px-5">
           <Link
             href="/"
             onClick={onMobileClose}
-            className="flex min-w-0 items-center gap-3"
+            className="flex min-w-0 items-center gap-4"
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-              <Image
-                src="/EliteLogo.svg"
-                alt="Elite"
-                width={38}
-                height={38}
-                priority
-                className="h-9 w-9 object-contain"
-              />
-            </div>
-
+            <Image
+              src="/EliteLogo.svg"
+              alt="Logo de Elite Company"
+              width={140}
+              height={70}
+              priority
+              unoptimized
+              className="h-auto w-28 shrink-0 object-contain"
+            />
+        
             <div className="min-w-0">
               <p className="truncate text-sm font-bold tracking-wide text-white">
                 Administración Elite
               </p>
-
+            
               <p className="truncate text-xs text-sidebar-foreground/65">
                 Panel administrativo
               </p>
@@ -242,9 +241,9 @@ export default function AppSidebar({
   return (
     <>
       {/* Sidebar de escritorio */}
-      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col bg-sidebar shadow-sidebar lg:flex">
-        {renderSidebarContent()}
-      </aside>
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col bg-sidebar lg:flex">
+      {renderSidebarContent()}
+    </aside>
 
       {/* Sidebar móvil */}
       {mobileOpen && (
@@ -261,7 +260,7 @@ export default function AppSidebar({
             className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"
           />
 
-          <aside className="relative z-10 flex h-full w-[86%] max-w-72 flex-col bg-sidebar shadow-sidebar">
+          <aside className="relative z-10 flex h-full w-[86%] max-w-72 flex-col bg-sidebar">
             <button
               type="button"
               aria-label="Cerrar menú"
