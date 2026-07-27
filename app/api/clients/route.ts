@@ -9,7 +9,7 @@ const createClientSchema = z.object({
     name: z.string().trim().min(1, "El nombre es requerido").max(150, "El nombre no puede tener más de 150 caracteres"),
     address: z.string().trim().min(1, "La dirección es requerida").max(255),
     phone: z.string().trim().min(1, "El teléfono es requerido").max(30),
-    email: z.preprocess((value) => typeof value === "string" ? value.trim() : value, z.email({error: "Ingrese un correo electrónico válido"}).max(255, "El correo no puede tener más de 255 caracteres")),
+    email: z.preprocess((value) => typeof value === "string" ? value.trim() : value, z.email({error: "Ingrese un correo electrónico válido, por ejemplo contacto@empresa.com"}).max(255, "El correo no puede tener más de 255 caracteres")),
     duiNit:z.string().trim().min(9, "El DUI/NIT debe contener al menos 9 caracteres").max(20, "El DUI/NIT no puede tener más de 20 caracteres").regex(/^[0-9\-]+$/, "El DUI/NIT solo puede contener números y guiones"),
     classification: z.string().trim().min(1).max(30).optional(),
     notes: z.string().trim().max(1000).nullable().optional()

@@ -43,13 +43,19 @@
     "tsx": "^4.19.3",
     "typescript": "^5"
   },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.22",
+      "sharp": "0.35.3"
+    }
+  },
   "allowScripts": {
     "sharp@0.34.5": true,
     "esbuild@0.28.1": true,
-    "unrs-resolver@1.11.1": true,
     "@prisma/engines@6.19.3": true,
-    "core-js@3.44.0": true,
     "prisma@6.19.3": true,
-    "@prisma/client@6.19.3": true
+    "@prisma/client@6.19.3": true,
+    "core-js@3.49.0": true,
+    "unrs-resolver@1.12.2": true
   }
 }
