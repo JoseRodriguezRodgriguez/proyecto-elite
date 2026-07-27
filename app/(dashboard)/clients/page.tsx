@@ -39,6 +39,7 @@ interface Client {
   address: string;
   phone: string;
   email: string;
+  duiNit?: string | null;
   classification: ClientClassification;
   notes?: string;
 }
@@ -61,6 +62,7 @@ const EMPTY_CLIENT_FORM: ClientForm = {
   address: "",
   phone: "",
   email: "",
+  duiNit: "",
   classification: "verde",
   notes: "",
 };
@@ -70,6 +72,7 @@ const DEFAULT_FIELD_MESSAGES: Record<ClientField, string> = {
   address: "Ingrese una dirección válida.",
   phone: "Ingrese un número de teléfono válido.",
   email: "Ingrese un correo electrónico válido.",
+  duiNit: "Ingrese un DUI o NIT válido.",
   classification: "Seleccione una clasificación válida.",
   notes: "Revise el contenido de las notas.",
 };
@@ -124,6 +127,9 @@ export default function ClientsPage() {
 
   // Cliente seleccionado para editar / eliminar
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [editFieldErrors, setEditFieldErrors] = useState<ClientFieldErrors>({});
+  const [editFormError, setEditFormError] = useState("");
+  const [isEditingClient, setIsEditingClient] = useState(false);
 
   function openNotesDialog(client: Client) {
     const notes = client.notes?.trim();
@@ -136,6 +142,8 @@ export default function ClientsPage() {
 
   function openEditDialog(client: Client) {
     setSelectedClient({ ...client });
+    setEditFieldErrors({});
+    setEditFormError("");
     setIsEditDialogOpen(true);
   }
 
@@ -189,7 +197,8 @@ export default function ClientsPage() {
       client.name.toLowerCase().includes(query) ||
       client.address.toLowerCase().includes(query) ||
       client.phone.toLowerCase().includes(query) ||
-      client.email.toLowerCase().includes(query)
+      client.email.toLowerCase().includes(query) ||
+      client.duiNit?.toLowerCase().includes(query)
     );
   });
 
@@ -309,27 +318,120 @@ export default function ClientsPage() {
 
   // Editar cliente (PATCH)
   const handleEditClient = async () => {
-    if (!selectedClient) return;
+    if (!selectedClient) return;  setEditFieldErrors({});
+    setEditFormError("");
+
+    setIsEditingClient(true);
     try {
-      const res = await fetch("/api/clients", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(selectedClient),
-      });
-      if (!res.ok) throw new Error("Error al editar el cliente");
-      const updatedClient = await res.json();
-      setClients((prev) =>
-        prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
+
+      const response = await fetch(
+        "/api/clients",
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify(
+            selectedClient
+          ),
+        }
       );
-      setIsEditDialogOpen(false);
-      setSelectedClient(null);
-    } catch (error: unknown) {
-      setError(
-        getErrorMessage(
-          error,
-          "Error al editar el cliente"
+      let responseBody: unknown = null;
+
+      try {
+      responseBody =
+
+          await response.json();
+      } catch {
+        responseBody = null;
+      }
+      if (!response.ok) {
+      const apiError =
+
+          (responseBody ?? {}) as ClientApiError;
+        const apiFieldErrors =
+
+          apiError.details?.fieldErrors ?? {};
+        const nextFieldErrors:
+
+          ClientFieldErrors = {};
+        for (
+
+          const field of Object.keys(
+            apiFieldErrors
+          ) as ClientField[]
+        ) {
+          const firstMessage =
+            apiFieldErrors[field]?.[0];
+          if (firstMessage) {
+
+            nextFieldErrors[field] =
+              firstMessage === "Invalid input"
+                ? DEFAULT_FIELD_MESSAGES[field]
+                : firstMessage;
+          }
+        }
+        setEditFieldErrors(
+        nextFieldErrors
+
+        );
+        const hasFieldErrors =
+        Object.keys(nextFieldErrors)
+
+            .length > 0;
+        let fallbackMessage =
+
+          "No se pudo editar el cliente.";
+        if (response.status === 401) {
+
+          fallbackMessage =
+            "Tu sesión ha expirado. Inicia sesión nuevamente.";
+        } else if (
+          response.status === 403
+        ) {
+          fallbackMessage =
+            "No tienes permisos para editar clientes.";
+        } else if (
+          response.status >= 500
+        ) {
+          fallbackMessage =
+            "Ocurrió un error interno. Inténtalo nuevamente.";
+        }
+        setEditFormError(
+        apiError.details
+
+            ?.formErrors?.[0] ??
+            (!hasFieldErrors
+              ? apiError.error ??
+                fallbackMessage
+              : "")
+        );
+        return;
+
+      }
+      const updatedClient =
+      responseBody as Client;
+
+      setClients((previous) =>
+
+        previous.map((client) =>
+          client.id === updatedClient.id
+            ? updatedClient
+            : client
         )
       );
+
+      setEditFieldErrors({});
+      setEditFormError("");
+      setIsEditDialogOpen(false);
+      setSelectedClient(null);
+    } catch {
+      setEditFormError(
+        "No fue posible comunicarse con el servidor."
+      );
+    } finally {
+      setIsEditingClient(false);
     }
   };
 
@@ -661,6 +763,60 @@ export default function ClientsPage() {
                 </div>
               </div>
 
+              {/* DUI/NIT */}
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label
+                  htmlFor="duiNit"
+                  className="pt-2 text-right"
+                >
+                  DUI/NIT
+                </Label>
+
+                <div className="col-span-3">
+                  <Input
+                    id="duiNit"
+                    name="duiNit"
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    value={newClient.duiNit ?? ""}
+                    placeholder="00000000-0 o 0000-000000-000-0"
+                    maxLength={20}
+                    aria-invalid={Boolean(
+                      addFieldErrors.duiNit
+                    )}
+                    aria-describedby={
+                      addFieldErrors.duiNit
+                        ? "add-client-dui-nit-error"
+                        : undefined
+                    }
+                    className={
+                      addFieldErrors.duiNit
+                        ? "border-red-500 focus-visible:ring-red-500"
+                        : ""
+                    }
+                    onChange={(event) =>
+                      updateNewClient(
+                        "duiNit",
+                        event.target.value.replace(
+                          /[^0-9-]/g,
+                          ""
+                        )
+                      )
+                    }
+                  />
+
+                  {addFieldErrors.duiNit && (
+                    <p
+                      id="add-client-dui-nit-error"
+                      className="mt-1 text-sm text-red-600"
+                    >
+                      {addFieldErrors.duiNit}
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Clasificación */}
               <div className="grid grid-cols-4 items-start gap-4">
                 <Label className="pt-2 text-right">
@@ -817,7 +973,7 @@ export default function ClientsPage() {
           <DataToolbar
             searchValue={searchQuery}
             onSearchChange={setSearchQuery}
-            searchPlaceholder="Buscar por nombre, dirección, teléfono o correo"
+            searchPlaceholder="Buscar por nombre, dirección, teléfono, correo, DUI o NIT"
             searchLabel="Buscar clientes"
             resultCount={filteredClients.length}
             totalCount={clients.length}
@@ -872,6 +1028,7 @@ export default function ClientsPage() {
                   <TableHead>Dirección</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Correo</TableHead>
+                  <TableHead>DUI/NIT</TableHead>
                   <TableHead>Clasificación</TableHead>
                   <TableHead>Notas</TableHead>
                   <TableHead className="text-right">
@@ -904,7 +1061,11 @@ export default function ClientsPage() {
                       <TableCell>
                         {client.email}
                       </TableCell>
-                    
+
+                      <TableCell>
+                        {client.duiNit || "Sin registrar"}
+                      </TableCell>
+
                       <TableCell>
                         <StatusBadge
                           variant={classificationBadge.variant}
@@ -974,6 +1135,8 @@ export default function ClientsPage() {
 
           if (!open) {
             setSelectedClient(null);
+            setEditFieldErrors({});
+            setEditFormError("");
           }
         }}
       >
@@ -984,6 +1147,15 @@ export default function ClientsPage() {
               Actualice la información del cliente seleccionado.
             </DialogDescription>
           </DialogHeader>
+
+          {editFormError && (
+            <div
+              role="alert"
+              className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {editFormError}
+            </div>
+          )}
 
           {selectedClient && (
             <div className="grid gap-4 py-4 sm:grid-cols-2">
@@ -1031,18 +1203,113 @@ export default function ClientsPage() {
               </div>
 
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="edit-email">Correo electrónico</Label>
+                <Label htmlFor="edit-email">
+                  Correo electrónico
+                </Label>
+                              
                 <Input
                   id="edit-email"
                   type="email"
+                  inputMode="email"
                   value={selectedClient.email}
-                  onChange={(event) =>
+                  placeholder="contacto@empresa.com"
+                  maxLength={255}
+                  autoComplete="email"
+                  aria-invalid={Boolean(
+                    editFieldErrors.email
+                  )}
+                  aria-describedby={
+                    editFieldErrors.email
+                      ? "edit-client-email-error"
+                      : undefined
+                  }
+                  className={
+                    editFieldErrors.email
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : ""
+                  }
+                  onChange={(event) => {
                     setSelectedClient({
                       ...selectedClient,
                       email: event.target.value,
-                    })
-                  }
+                    });
+                  
+                    setEditFieldErrors(
+                      (previous) => ({
+                        ...previous,
+                        email: undefined,
+                      })
+                    );
+                  
+                    setEditFormError("");
+                  }}
                 />
+              
+                {editFieldErrors.email && (
+                  <p
+                    id="edit-client-email-error"
+                    className="text-sm text-red-600"
+                  >
+                    {editFieldErrors.email}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="edit-dui-nit">
+                  DUI/NIT
+                </Label>
+
+                <Input
+                  id="edit-dui-nit"
+                  value={selectedClient.duiNit ?? ""}
+                  placeholder="00000000-0 o 0000-000000-000-0"
+                  maxLength={20}
+                  inputMode="numeric"
+                  aria-invalid={Boolean(
+                    editFieldErrors.duiNit
+                  )}
+                  aria-describedby={
+                    editFieldErrors.duiNit
+                      ? "edit-client-dui-nit-error"
+                      : undefined
+                  }
+                  className={
+                    editFieldErrors.duiNit
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : ""
+                  }
+                  onChange={(event) => {
+                    const value =
+                      event.target.value.replace(
+                        /[^0-9-]/g,
+                        ""
+                      );
+                    
+                    setSelectedClient({
+                      ...selectedClient,
+                      duiNit: value,
+                    });
+                  
+                    setEditFieldErrors(
+                      (previous) => ({
+                        ...previous,
+                        duiNit: undefined,
+                      })
+                    );
+                  
+                    setEditFormError("");
+                  }}
+                />
+
+                {editFieldErrors.duiNit && (
+                  <p
+                    id="edit-client-dui-nit-error"
+                    className="text-sm text-red-600"
+                  >
+                    {editFieldErrors.duiNit}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2 sm:col-span-2">
@@ -1131,6 +1398,8 @@ export default function ClientsPage() {
               onClick={() => {
                 setIsEditDialogOpen(false);
                 setSelectedClient(null);
+                setEditFieldErrors({});
+                setEditFormError("");
               }}
             >
               Cancelar
@@ -1138,10 +1407,15 @@ export default function ClientsPage() {
 
             <Button
               type="button"
-              disabled={!selectedClient}
+              disabled={
+                !selectedClient ||
+                isEditingClient
+              }
               onClick={handleEditClient}
             >
-              Guardar cambios
+              {isEditingClient
+                ? "Guardando..."
+                : "Guardar cambios"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1155,6 +1429,8 @@ export default function ClientsPage() {
 
           if (!open) {
             setSelectedClient(null);
+            setEditFieldErrors({});
+            setEditFormError("");
           }
         }}
       >
