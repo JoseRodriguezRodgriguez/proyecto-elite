@@ -19,6 +19,7 @@ model Client {
   address        String         @db.VarChar
   phone          String         @db.VarChar
   email          String         @db.VarChar
+  duiNit         String?        @unique @db.VarChar(20)
   classification String         @default("verde") @db.VarChar // valor por defecto
   notes          String?        @db.VarChar
   scheduledJobs  ScheduledJob[]

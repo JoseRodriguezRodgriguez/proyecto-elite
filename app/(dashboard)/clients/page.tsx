@@ -39,6 +39,7 @@ interface Client {
   address: string;
   phone: string;
   email: string;
+  duiNit?: string | null;
   classification: ClientClassification;
   notes?: string;
 }
@@ -61,6 +62,7 @@ const EMPTY_CLIENT_FORM: ClientForm = {
   address: "",
   phone: "",
   email: "",
+  duiNit: "",
   classification: "verde",
   notes: "",
 };
@@ -70,6 +72,7 @@ const DEFAULT_FIELD_MESSAGES: Record<ClientField, string> = {
   address: "Ingrese una dirección válida.",
   phone: "Ingrese un número de teléfono válido.",
   email: "Ingrese un correo electrónico válido.",
+  duiNit: "Ingrese un DUI o NIT válido.",
   classification: "Seleccione una clasificación válida.",
   notes: "Revise el contenido de las notas.",
 };
@@ -189,7 +192,8 @@ export default function ClientsPage() {
       client.name.toLowerCase().includes(query) ||
       client.address.toLowerCase().includes(query) ||
       client.phone.toLowerCase().includes(query) ||
-      client.email.toLowerCase().includes(query)
+      client.email.toLowerCase().includes(query) ||
+      client.duiNit?.toLowerCase().includes(query)
     );
   });
 
@@ -661,6 +665,60 @@ export default function ClientsPage() {
                 </div>
               </div>
 
+              {/* DUI/NIT */}
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label
+                  htmlFor="duiNit"
+                  className="pt-2 text-right"
+                >
+                  DUI/NIT
+                </Label>
+
+                <div className="col-span-3">
+                  <Input
+                    id="duiNit"
+                    name="duiNit"
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    value={newClient.duiNit ?? ""}
+                    placeholder="00000000-0 o 0000-000000-000-0"
+                    maxLength={20}
+                    aria-invalid={Boolean(
+                      addFieldErrors.duiNit
+                    )}
+                    aria-describedby={
+                      addFieldErrors.duiNit
+                        ? "add-client-dui-nit-error"
+                        : undefined
+                    }
+                    className={
+                      addFieldErrors.duiNit
+                        ? "border-red-500 focus-visible:ring-red-500"
+                        : ""
+                    }
+                    onChange={(event) =>
+                      updateNewClient(
+                        "duiNit",
+                        event.target.value.replace(
+                          /[^0-9-]/g,
+                          ""
+                        )
+                      )
+                    }
+                  />
+
+                  {addFieldErrors.duiNit && (
+                    <p
+                      id="add-client-dui-nit-error"
+                      className="mt-1 text-sm text-red-600"
+                    >
+                      {addFieldErrors.duiNit}
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Clasificación */}
               <div className="grid grid-cols-4 items-start gap-4">
                 <Label className="pt-2 text-right">
@@ -817,7 +875,7 @@ export default function ClientsPage() {
           <DataToolbar
             searchValue={searchQuery}
             onSearchChange={setSearchQuery}
-            searchPlaceholder="Buscar por nombre, dirección, teléfono o correo"
+            searchPlaceholder="Buscar por nombre, dirección, teléfono, correo, DUI o NIT"
             searchLabel="Buscar clientes"
             resultCount={filteredClients.length}
             totalCount={clients.length}
@@ -872,6 +930,7 @@ export default function ClientsPage() {
                   <TableHead>Dirección</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Correo</TableHead>
+                  <TableHead>DUI/NIT</TableHead>
                   <TableHead>Clasificación</TableHead>
                   <TableHead>Notas</TableHead>
                   <TableHead className="text-right">
@@ -904,7 +963,11 @@ export default function ClientsPage() {
                       <TableCell>
                         {client.email}
                       </TableCell>
-                    
+
+                      <TableCell>
+                        {client.duiNit || "Sin registrar"}
+                      </TableCell>
+
                       <TableCell>
                         <StatusBadge
                           variant={classificationBadge.variant}
@@ -1042,6 +1105,34 @@ export default function ClientsPage() {
                       email: event.target.value,
                     })
                   }
+                />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label
+                  htmlFor="edit-dui-nit"
+                  className="text-right"
+                >
+                  DUI/NIT
+                </Label>
+
+                <Input
+                  id="edit-dui-nit"
+                  value={selectedClient?.duiNit ?? ""}
+                  placeholder="00000000-0 o 0000-000000-000-0"
+                  maxLength={20}
+                  className="col-span-3"
+                  onChange={(event) => {
+                    if (!selectedClient) return;
+                  
+                    setSelectedClient({
+                      ...selectedClient,
+                      duiNit: event.target.value.replace(
+                        /[^0-9-]/g,
+                        ""
+                      ),
+                    });
+                  }}
                 />
               </div>
 

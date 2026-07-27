@@ -7,9 +7,10 @@ import { requireActiveUser, requireAdmin, authErrorResponse } from "@/lib/auth/s
 
 const createClientSchema = z.object({
     name: z.string().trim().min(1, "El nombre es requerido").max(150, "El nombre no puede tener más de 150 caracteres"),
-    address: z.string().trim().min(1).max(255),
-    phone: z.string().trim().min(1).max(30),
-    email: z.string().trim().email().max(255),
+    address: z.string().trim().min(1, "La dirección es requerida").max(255),
+    phone: z.string().trim().min(1, "El teléfono es requerido").max(30),
+    email: z.preprocess((value) => typeof value === "string" ? value.trim() : value, z.email({error: "Ingrese un correo electrónico válido"}).max(255, "El correo no puede tener más de 255 caracteres")),
+    duiNit:z.string().trim().min(9, "El DUI/NIT debe contener al menos 9 caracteres").max(20, "El DUI/NIT no puede tener más de 20 caracteres").regex(/^[0-9\-]+$/, "El DUI/NIT solo puede contener números y guiones"),
     classification: z.string().trim().min(1).max(30).optional(),
     notes: z.string().trim().max(1000).nullable().optional()
 });
@@ -25,6 +26,7 @@ const updateClientSchema = createClientSchema
             data.address !== undefined ||
             data.phone !== undefined ||
             data.email !== undefined ||
+            data.duiNit !== undefined ||
             data.classification !== undefined ||
             data.notes !== undefined,
         {
@@ -80,6 +82,29 @@ export async function POST(request: Request) {
         });
         return NextResponse.json(newClient, { status: 201 });
     } catch (error) {
+        if (
+          error instanceof
+            Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "Ya existe un cliente registrado con ese DUI/NIT",
+              details: {
+                formErrors: [],
+                fieldErrors: {
+                  duiNit: [
+                    "El DUI/NIT ya está registrado",
+                  ],
+                },
+              },
+            },
+            {
+              status: 409,
+            }
+          );
+        }
         const { status, body } = authErrorResponse(error);
         return NextResponse.json(body, { status });
     }
@@ -103,6 +128,29 @@ export async function PATCH(request:Request) {
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
             return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+        }
+        if (
+          error instanceof
+            Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "Ya existe un cliente registrado con ese DUI/NIT",
+              details: {
+                formErrors: [],
+                fieldErrors: {
+                  duiNit: [
+                    "El DUI/NIT ya está registrado",
+                  ],
+                },
+              },
+            },
+            {
+              status: 409,
+            }
+          );
         }
         const { status, body } = authErrorResponse(error);
         return NextResponse.json(body, { status });
