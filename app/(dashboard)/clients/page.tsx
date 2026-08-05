@@ -36,6 +36,7 @@ type ClientClassification = "verde" | "amarillo" | "rojo";
 interface Client {
   id: number;
   name: string;
+  contactName: string;
   address: string;
   phone: string;
   email: string;
@@ -59,6 +60,7 @@ interface ClientApiError {
 
 const EMPTY_CLIENT_FORM: ClientForm = {
   name: "",
+  contactName: "",
   address: "",
   phone: "",
   email: "",
@@ -69,6 +71,7 @@ const EMPTY_CLIENT_FORM: ClientForm = {
 
 const DEFAULT_FIELD_MESSAGES: Record<ClientField, string> = {
   name: "Ingrese un nombre válido.",
+  contactName: "",
   address: "Ingrese una dirección válida.",
   phone: "Ingrese un número de teléfono válido.",
   email: "Ingrese un correo electrónico válido.",
@@ -198,6 +201,7 @@ export default function ClientsPage() {
       client.address.toLowerCase().includes(query) ||
       client.phone.toLowerCase().includes(query) ||
       client.email.toLowerCase().includes(query) ||
+      client.contactName.toLowerCase().includes(query) ||
       client.duiNit?.toLowerCase().includes(query)
     );
   });
@@ -614,7 +618,49 @@ export default function ClientsPage() {
                   )}
                 </div>
               </div>
+              {/* Contacto principal */}
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label
+                  htmlFor="contactName"
+                  className="pt-2 text-right"
+                >
+                  Contacto
+                </Label>
 
+                <div className="col-span-3">
+                  <Input
+                    id="contactName"
+                    name="contactName"
+                    value={newClient.contactName ?? ""}
+                    placeholder="Nombre de la persona de contacto"
+                    maxLength={150}
+                    autoComplete="name"
+                    aria-invalid={Boolean(addFieldErrors.contactName)}
+                    aria-describedby={
+                      addFieldErrors.contactName
+                        ? "add-client-contact-name-error"
+                        : undefined
+                    }
+                    className={
+                      addFieldErrors.contactName
+                        ? "border-red-500 focus-visible:ring-red-500"
+                        : ""
+                    }
+                    onChange={(event) =>
+                      updateNewClient("contactName", event.target.value)
+                    }
+                  />
+
+                  {addFieldErrors.contactName && (
+                    <p
+                      id="add-client-contact-name-error"
+                      className="mt-1 text-sm text-red-600"
+                    >
+                      {addFieldErrors.contactName}
+                    </p>
+                  )}
+                </div>
+              </div>
               {/* Dirección */}
               <div className="grid grid-cols-4 items-start gap-4">
                 <Label
@@ -973,7 +1019,7 @@ export default function ClientsPage() {
           <DataToolbar
             searchValue={searchQuery}
             onSearchChange={setSearchQuery}
-            searchPlaceholder="Buscar por nombre, dirección, teléfono, correo, DUI o NIT"
+            searchPlaceholder="Buscar por nombre, contacto, dirección, teléfono, correo, DUI o NIT"
             searchLabel="Buscar clientes"
             resultCount={filteredClients.length}
             totalCount={clients.length}
@@ -1025,6 +1071,7 @@ export default function ClientsPage() {
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
                   <TableHead>Nombre</TableHead>
+                  <TableHead>Contacto</TableHead>
                   <TableHead>Dirección</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Correo</TableHead>
@@ -1050,6 +1097,10 @@ export default function ClientsPage() {
                         {client.name}
                       </TableCell>
                     
+                      <TableCell>
+                        {client.contactName?.trim() || "Sin registrar"}
+                      </TableCell>
+
                       <TableCell>
                         {client.address}
                       </TableCell>
@@ -1186,6 +1237,50 @@ export default function ClientsPage() {
                     })
                   }
                 />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="edit-contact-name">Contacto</Label>
+
+                <Input
+                  id="edit-contact-name"
+                  value={selectedClient.contactName ?? ""}
+                  placeholder="Nombre de la persona de contacto"
+                  maxLength={150}
+                  autoComplete="name"
+                  aria-invalid={Boolean(editFieldErrors.contactName)}
+                  aria-describedby={
+                    editFieldErrors.contactName
+                      ? "edit-client-contact-name-error"
+                      : undefined
+                  }
+                  className={
+                    editFieldErrors.contactName
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : ""
+                  }
+                  onChange={(event) => {
+                    setSelectedClient({
+                      ...selectedClient,
+                      contactName: event.target.value,
+                    });
+                  
+                    setEditFieldErrors((previous) => ({
+                      ...previous,
+                      contactName: undefined,
+                    }));
+                  
+                    setEditFormError("");
+                  }}
+                />
+
+                {editFieldErrors.contactName && (
+                  <p
+                    id="edit-client-contact-name-error"
+                    className="text-sm text-red-600"
+                  >
+                    {editFieldErrors.contactName}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2 sm:col-span-2">

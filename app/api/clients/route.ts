@@ -7,6 +7,7 @@ import { requireActiveUser, requireAdmin, authErrorResponse } from "@/lib/auth/s
 
 const createClientSchema = z.object({
     name: z.string().trim().min(1, "El nombre es requerido").max(150, "El nombre no puede tener más de 150 caracteres"),
+    contactName: z.string().trim().max(150, "El nombre del contacto no puede tener más de 150 caracteres"),
     address: z.string().trim().min(1, "La dirección es requerida").max(255),
     phone: z.string().trim().min(1, "El teléfono es requerido").max(30),
     email: z.preprocess((value) => typeof value === "string" ? value.trim() : value, z.email({error: "Ingrese un correo electrónico válido, por ejemplo contacto@empresa.com"}).max(255, "El correo no puede tener más de 255 caracteres")),
@@ -23,6 +24,7 @@ const updateClientSchema = createClientSchema
     .refine(
         (data) => 
             data.name !== undefined ||
+            data.contactName !== undefined ||
             data.address !== undefined ||
             data.phone !== undefined ||
             data.email !== undefined ||
