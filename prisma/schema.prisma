@@ -16,6 +16,7 @@ enum AccountStatus {
 model Client {
   id             Int            @id @default(autoincrement())
   name           String         @db.VarChar
+  contactName    String?        @db.VarChar(150)
   address        String         @db.VarChar
   phone          String         @db.VarChar
   email          String         @db.VarChar
